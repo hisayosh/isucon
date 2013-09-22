@@ -1,0 +1,64 @@
+<html>
+  <head>
+    <title>isucon 2</title>
+    <meta charset="utf-8">
+    <link type="text/css" rel="stylesheet" href="/css/ui-lightness/jquery-ui-1.8.24.custom.css">
+    <link type="text/css" rel="stylesheet" href="/css/isucon2.css">
+    <script type="text/javascript" src="/js/jquery-1.8.2.min.js"></script>
+    <script type="text/javascript" src="/js/jquery-ui-1.8.24.custom.min.js"></script>
+    <script type="text/javascript" src="/js/isucon2.js"></script>
+  </head>
+  <body>
+    <header>
+      <a href="/">
+        <img src="/images/isucon_title.jpg">
+      </a>
+    </header>
+    <div id="sidebar">
+      <table>
+        <tr><th colspan="2">最近購入されたチケット</th></tr>
+        {{with .RecentSold}}
+        {{range $key, $val := .}}
+        <tr>
+          <td class="recent_variation">{{$val.a_name}} {{$val.t_name}} {{$val.v_name}}</td>
+          <td class="recent_seat_id">{{$val.seat_id}}</td>
+        </tr>
+        {{end}}
+        {{end}}
+      </table>
+    </div>
+    <div id="content">
+
+<h2>{{.Ticket.artist_name}} : {{.Ticket.name}}</h2>
+<ul>
+{{range $key, $val := .Variations}}
+<li class="variation">
+  <form method="POST" action="/buy">
+    <input type="hidden" name="ticket_id" value="{{.Ticket.id}}">
+    <input type="hidden" name="variation_id" value="{{$val.id}}">
+    <span class="variation_name">{{$val.name}}</span> 残り<span class="vacancy" id="vacancy_{{$val.id}}">{{$val.vacancy}}</span>席
+    <input type="text" name="member_id" value="">
+    <input type="submit" value="購入">
+  </form>
+</li>
+{{end}}
+</ul>
+
+<h3>席状況</h3>
+{{with .Seat}}
+{{range .}}
+<h4>{{.VariationName}}</h4>
+<table class="seats" data-variationid="{{.VariationId}}">
+{{with .Items}}
+{{range $key, $val := .}}
+  <td id="{{$val.seat_id}}" class="{{$val.order_id}}"></td>
+{{end}}
+{{end}}
+  </tr>
+</table>
+{{end}}
+{{end}}
+
+    </div>
+  </body>
+</html>
