@@ -1,0 +1,3 @@
+/usr/share/munin/plugins/apache_accesses
+/usr/share/munin/plugins/apache_processes
+/usr/share/munin/plugins/apache_volume

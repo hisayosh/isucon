@@ -1,0 +1,7 @@
+/usr/share/munin/plugins/mysql_
+/usr/share/munin/plugins/mysql_bytes
+/usr/share/munin/plugins/mysql_innodb
+/usr/share/munin/plugins/mysql_isam_space_
+/usr/share/munin/plugins/mysql_queries
+/usr/share/munin/plugins/mysql_slowqueries
+/usr/share/munin/plugins/mysql_threads
