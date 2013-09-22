@@ -14,7 +14,7 @@ echo "ExtendedStatus On
 sudo service httpd graceful
 
 # Install munin plugins
-for i in $(cat munin-apache-plugin-names)
+for i in $(ls /usr/share/munin/plugins/apache_*)
 do
     sudo ln -snf $i /etc/munin/plugins
 done

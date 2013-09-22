@@ -1,6 +1,8 @@
 #!/bin/bash
 set -x
-for i in $(ls /usr/share/munin/plugins/mysql_*)
+
+# Install munin plugins
+for i in $(ls /usr/share/munin/plugins/nginx_*)
 do
     sudo ln -snf $i /etc/munin/plugins
 done
