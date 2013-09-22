@@ -1,6 +1,9 @@
 package main
 
 import (
+  "os"
+  "bufio"
+  "io"
   "fmt"
   "database/sql"
   _ "github.com/go-sql-driver/mysql"
@@ -42,13 +45,6 @@ func (p *DbConn) Close() {
     p.db_conn.Close()
 }
 
-type RecentSoldItem struct {
-    id  int
-    v_name string
-    t_name string
-    a_name string
-}
-
 func (p *DbConn) RecentSold() []map[string]string {
     fmt.Print("DbConn: RecentSold\n");
 
@@ -64,27 +60,38 @@ func (p *DbConn) RecentSold() []map[string]string {
 
     rows, err := p.db_conn.Query(sql)
     if err != nil {
-        fmt.Println("Error: query failed");
-        return make([]map[string]string, 0)
+        panic(err.Error())
     }
     defer rows.Close()
 
     return GetData(rows);
 }
 
-func (p *DbConn) Index() []map[string]string {
+type IndexViewModel struct {
+    RecentSold []map[string]string
+    Artist []map[string]string
+}
+
+func (p *DbConn) Index() IndexViewModel {
     fmt.Print("DbConn: get /\n");
     sql := "SELECT * FROM artist ORDER BY id"
     fmt.Printf("  [%s]\n", sql);
 
     rows, err := p.db_conn.Query(sql)
     if err != nil {
-        fmt.Println("Error: query failed");
-        return make([]map[string]string, 0)
+        panic(err.Error())
     }
     defer rows.Close()
 
-    return GetData(rows);
+    recent := db.RecentSold()
+    artist := GetData(rows)
+
+    model := IndexViewModel {
+        RecentSold: recent,
+        Artist: artist,
+    }
+
+    return model
 }
 
 func GetData(r *sql.Rows) []map[string]string {
@@ -145,7 +152,12 @@ func PrintData(data []map[string]string) {
     }
 }
 
-func (p *DbConn) GetArtists(artist_id string) []map[string]string {
+type ArtistViewModel struct {
+    Artist []map[string]string
+    Tickets []map[string]string
+}
+
+func (p *DbConn) GetArtists(artist_id string) ArtistViewModel {
     fmt.Printf("DbConn: get /artist/:artistid  (%s)\n", artist_id);
 
     sql_artist := "SELECT id, name FROM artist WHERE id = ? LIMIT 1"
@@ -160,26 +172,22 @@ func (p *DbConn) GetArtists(artist_id string) []map[string]string {
 
     stmt, err := p.db_conn.Prepare(sql_artist)
     if err != nil {
-        fmt.Println("Error: query failed");
         panic(err.Error())
     }
     rows, err := stmt.Query(artist_id)
     if err != nil {
-        fmt.Println("Error: query failed");
         panic(err.Error())
     }
     defer rows.Close()
-    artist := GetData(rows);
+    artists := GetData(rows);
 
 
     stmt, err = p.db_conn.Prepare(sql_ticket)
     if err != nil {
-        fmt.Println("Error: query failed");
         panic(err.Error())
     }
-    rows, err = stmt.Query(artist[0]["id"])
+    rows, err = stmt.Query(artists[0]["id"])
     if err != nil {
-        fmt.Println("Error: query failed");
         panic(err.Error())
     }
     defer rows.Close()
@@ -189,24 +197,31 @@ func (p *DbConn) GetArtists(artist_id string) []map[string]string {
     for i := 0; i < siz; i++ {
         stmt, err = p.db_conn.Prepare(sql_count_tickets)
         if err != nil {
-            fmt.Println("Error: query failed");
             panic(err.Error())
         }
         rows, err = stmt.Query(tickets[i]["id"])
         if err != nil {
-            fmt.Println("Error: query failed");
             panic(err.Error())
         }
         count := GetData(rows);
 
         tickets[i]["count"] = count[0]["num"]
     }
-    //PrintData(tickets)
 
-    return tickets // TODO: type?
+    model := ArtistViewModel {
+        Artist: artists,
+        Tickets: tickets,
+    }
+
+    return model
 }
 
-func (p *DbConn) GetTickets(ticket_id string) []map[string]string {
+type TicketViewModel struct {
+    Tickets []map[string]string
+    Variations []map[string]string
+}
+
+func (p *DbConn) GetTickets(ticket_id string) TicketViewModel {
     fmt.Printf("DbConn: get /ticket/:ticketid (%s)\n", ticket_id)
 
     sql_ticket := "SELECT t.*, a.name AS artist_name FROM ticket t INNER JOIN artist a ON t.artist_id = a.id WHERE t.id = ? LIMIT 1"
@@ -230,7 +245,7 @@ func (p *DbConn) GetTickets(ticket_id string) []map[string]string {
         fmt.Println("Error: query failed");
         panic(err.Error())
     }
-    ticket := GetData(rows);
+    tickets := GetData(rows);
     //PrintData(ticket)
 
     stmt, err = p.db_conn.Prepare(sql_variations)
@@ -238,14 +253,14 @@ func (p *DbConn) GetTickets(ticket_id string) []map[string]string {
         fmt.Println("Error: query failed");
         panic(err.Error())
     }
-    rows, err = stmt.Query(ticket[0]["id"])
+    rows, err = stmt.Query(tickets[0]["id"])
     if err != nil {
         fmt.Println("Error: query failed");
         panic(err.Error())
     }
     defer rows.Close()
     variations := GetData(rows);
-    PrintData(variations)
+    //PrintData(variations)
 
     siz := len(variations)
     for i := 0; i < siz; i++ {
@@ -276,10 +291,20 @@ func (p *DbConn) GetTickets(ticket_id string) []map[string]string {
         //PrintData(num)
     }
 
-    return make([]map[string]string, 0)  // TODO:
+    model := TicketViewModel {
+        Tickets: tickets,
+        Variations: variations,
+    }
+
+    return model
 }
 
-func (p *DbConn) Buy(variation_id string, member_id string) {
+type BuyViewModel struct {
+    SeatId string
+    MemberId string
+}
+
+func (p *DbConn) Buy(variation_id string, member_id string) BuyViewModel {
     fmt.Printf("DbConn: post /buy (%s:%s)\n", variation_id, member_id)
 
     sql_add := "INSERT INTO order_request (member_id) VALUES (?)"
@@ -335,10 +360,18 @@ func (p *DbConn) Buy(variation_id string, member_id string) {
         PrintData(seat)
         tx.Commit()
 
-        fmt.Print(">> commit")
+        model := BuyViewModel {
+            SeatId: "",
+            MemberId: "",
+        }
+
+        return model
     } else {
         fmt.Print(">> rollback")
         tx.Rollback()
+
+        model := BuyViewModel { "", "" }
+        return model
     }
 }
 
@@ -377,9 +410,8 @@ func (p *DbConn) Admin() {
         if s == "\n" {
             continue
         }
-        //fmt.Fprintf(w, "[%s]\n", s)
 
-        _, err = db_conn.Exec(s)
+        _, err = p.db_conn.Exec(s)
     }
 }
 
