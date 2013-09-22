@@ -1,0 +1,10 @@
+{{define "index"}}
+<h1>TOP</h1>
+<ul>
+  {{with .At}}
+  {{range .}}
+    <li><a href="/artist/{{.Id}}"><span class="artist_name">{{.Name}}</span></a></li>
+  {{end}}
+  {{end}}
+</ul>
+{{end}}
