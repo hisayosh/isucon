@@ -1,0 +1,43 @@
+<html>
+  <head>
+    <title>isucon 2</title>
+    <meta charset="utf-8">
+    <link type="text/css" rel="stylesheet" href="/css/ui-lightness/jquery-ui-1.8.24.custom.css">
+    <link type="text/css" rel="stylesheet" href="/css/isucon2.css">
+    <script type="text/javascript" src="/js/jquery-1.8.2.min.js"></script>
+    <script type="text/javascript" src="/js/jquery-ui-1.8.24.custom.min.js"></script>
+    <script type="text/javascript" src="/js/isucon2.js"></script>
+  </head>
+  <body>
+    <header>
+      <a href="/">
+        <img src="/images/isucon_title.jpg">
+      </a>
+    </header>
+    <div id="sidebar">
+      <table>
+        <tr><th colspan="2">最近購入されたチケット</th></tr>
+        {{with .RecentSold}}
+        {{range $key, $val := .}}
+        <tr>
+          <td class="recent_variation">{{$val.a_name}} {{$val.t_name}} {{$val.v_name}}</td>
+          <td class="recent_seat_id">{{$val.seat_id}}</td>
+        </tr>
+        {{end}}
+        {{end}}
+      </table>
+    </div>
+    <div id="content">
+        <h2>{{.Artist.name}}</h2>
+        <ul>
+          {{with .Tickets}}
+          {{range $key, $val := .}}
+        <li class="ticket">
+          <a href="/ticket/{{$val.id}}">{{$val.name}}</a>残り<span class="count">{{$val.count}}</span>枚
+        </li>
+          {{end}}
+          {{end}}
+        </ul>
+    </div>
+  </body>
+</html>

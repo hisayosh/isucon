@@ -246,7 +246,7 @@ func (p *DbConn) GetTickets(ticket_id string) TicketViewModel {
         panic(err.Error())
     }
     tickets := GetData(rows);
-    //PrintData(ticket)
+    PrintData(tickets)
 
     stmt, err = p.db_conn.Prepare(sql_variations)
     if err != nil {
@@ -274,8 +274,8 @@ func (p *DbConn) GetTickets(ticket_id string) TicketViewModel {
             fmt.Println("Error: query failed");
             panic(err.Error())
         }
-        //stack := GetData(rows);
-        //PrintData(stack)
+        stack := GetData(rows);
+        PrintData(stack)
 
         stmt, err = p.db_conn.Prepare(sql_variation_vacancy)
         if err != nil {
@@ -443,8 +443,8 @@ func main() {
     }
 */
 
-/*
     db.GetArtists("1")
+/*
 */
 
     db.GetTickets("2")
@@ -459,7 +459,9 @@ func main() {
     PrintData(data)
 */
 
+/*
     db.Admin()
+*/
 
     db.Close()
 }
