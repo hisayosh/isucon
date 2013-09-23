@@ -443,25 +443,17 @@ func main() {
     }
 */
 
+/*
     db.GetArtists("1")
-/*
-*/
-
     db.GetTickets("2")
-/*
-*/
 
-/*
-    db.Buy("3", "100")
-*/
-/*
     data := db.AdminOrder()
     PrintData(data)
-*/
 
-/*
     db.Admin()
 */
+
+    db.Buy("10", "zzzz")
 
     db.Close()
 }
