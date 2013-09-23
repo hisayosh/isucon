@@ -29,36 +29,15 @@
     </div>
     <div id="content">
 
-<h2>{{.Ticket.artist_name}} : {{.Ticket.name}}</h2>
-<ul>
-{{range $key, $val := .Variations}}
-<li class="variation">
-  <form method="POST" action="/buy">
-    <input type="hidden" name="ticket_id" value="{{$.Ticket.id}}">
-    <input type="hidden" name="variation_id" value="{{$val.id}}">
-    <span class="variation_name">{{$val.name}}</span> 残り<span class="vacancy" id="vacancy_{{$val.id}}">{{$val.count}}</span>席
-    <input type="text" name="member_id" value="">
-    <input type="submit" value="購入">
-  </form>
-</li>
-{{end}}
+  <li>
+    <a href="/admin/order.csv">注文CSV</a>
+  </li>
+  <li>
+    <form method="POST">
+      <input type="submit" value="データ初期化" />
+    </form>
+  </li>
 </ul>
-
-<h3>席状況</h3>
-{{with .Seat}}
-{{range .}}
-<h4>{{.VariationName}}</h4>
-<table class="seats" data-variationid="{{.VariationId}}">
-  <tr>
-{{with .Items}}
-{{range $key, $val := .}}
-  <td id="{{$val.seat_id}}" class="{{$val.order_id}}"></td>
-{{end}}
-{{end}}
-  </tr>
-</table>
-{{end}}
-{{end}}
 
     </div>
   </body>
