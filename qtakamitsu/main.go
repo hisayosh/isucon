@@ -5,6 +5,7 @@ import (
   "bufio"
   "io"
   "fmt"
+  "bytes"
   "text/template"
   "net/http"
   "database/sql"
@@ -61,7 +62,7 @@ func (p *DbConn) RecentSold() []map[string]string {
         " WHERE order_id IS NOT NULL" +
         " ORDER BY order_id DESC LIMIT 10"
 
-    fmt.Printf("  [%s]\n", sql);
+    //fmt.Printf("  [%s]\n", sql);
 
     rows, err := p.db_conn.Query(sql)
     if err != nil {
@@ -80,7 +81,7 @@ type IndexViewModel struct {
 func (p *DbConn) Index() IndexViewModel {
     fmt.Print("DbConn: get /\n");
     sql := "SELECT * FROM artist ORDER BY id"
-    fmt.Printf("  [%s]\n", sql);
+    //fmt.Printf("  [%s]\n", sql);
 
     rows, err := p.db_conn.Query(sql)
     if err != nil {
@@ -173,9 +174,9 @@ func (p *DbConn) GetArtists(artist_id string) ArtistViewModel {
         " INNER JOIN stock ON stock.variation_id = variation.id" +
         " WHERE variation.ticket_id = ? AND stock.order_id IS NULL"
 
-    fmt.Printf("  [%s]\n", sql_artist);
-    fmt.Printf("  [%s]\n", sql_ticket);
-    fmt.Printf("  [%s]\n", sql_count_tickets);
+    //fmt.Printf("  [%s]\n", sql_artist);
+    //fmt.Printf("  [%s]\n", sql_ticket);
+    //fmt.Printf("  [%s]\n", sql_count_tickets);
 
     stmt, err := p.db_conn.Prepare(sql_artist)
     if err != nil {
@@ -249,10 +250,10 @@ func (p *DbConn) GetTickets(ticket_id string) TicketViewModel {
     sql_variation_stock := "SELECT seat_id, order_id FROM stock WHERE variation_id = ?"
     sql_variation_vacancy := "SELECT COUNT(*) as num FROM stock WHERE variation_id = ? AND order_id IS NULL"
 
-    fmt.Printf("  [%s]\n", sql_ticket);
-    fmt.Printf("  [%s]\n", sql_variations);
-    fmt.Printf("  [%s]\n", sql_variation_stock);
-    fmt.Printf("  [%s]\n", sql_variation_vacancy);
+    //fmt.Printf("  [%s]\n", sql_ticket);
+    //fmt.Printf("  [%s]\n", sql_variations);
+    //fmt.Printf("  [%s]\n", sql_variation_stock);
+    //fmt.Printf("  [%s]\n", sql_variation_vacancy);
 
 
     stmt, err := p.db_conn.Prepare(sql_ticket)
@@ -264,7 +265,7 @@ func (p *DbConn) GetTickets(ticket_id string) TicketViewModel {
         panic(err.Error())
     }
     tickets := GetData(rows);
-    //PrintData(ticket)
+    //PrintData(tickets)
 
     stmt, err = p.db_conn.Prepare(sql_variations)
     if err != nil {
@@ -319,7 +320,8 @@ func (p *DbConn) GetTickets(ticket_id string) TicketViewModel {
         count := GetData(rows);
         //PrintData(num)
 
-        seat.Count = count[0]["num"]
+        variations[i]["count"] = count[0]["num"]
+        //seat.Count = count[0]["num"]
 
         seats = append(seats, seat)
     }
@@ -346,12 +348,12 @@ func (p *DbConn) Buy(variation_id string, member_id string) BuyViewModel {
     fmt.Printf("DbConn: post /buy (%s:%s)\n", variation_id, member_id)
 
     sql_add := "INSERT INTO order_request (member_id) VALUES (?)"
-    sql_mod := "UPDATE stock SET order_id = ? WHERE variation_id = ? AND order_id IS NULL ORDER BY RAND() LIMIT 0"
-    sql_get := "SELECT seat_id FROM stock WHERE order_id = ? LIMIT 1', $order_id"
+    sql_mod := "UPDATE stock SET order_id = ? WHERE variation_id = ? AND order_id IS NULL ORDER BY RAND() LIMIT 1"
+    sql_get := "SELECT seat_id FROM stock WHERE order_id = ? LIMIT 1"
 
-    fmt.Printf("  [%s]\n", sql_add);
-    fmt.Printf("  [%s]\n", sql_mod);
-    fmt.Printf("  [%s]\n", sql_get);
+    //fmt.Printf("  [%s]\n", sql_add);
+    //fmt.Printf("  [%s]\n", sql_mod);
+    //fmt.Printf("  [%s]\n", sql_get);
 
     recent := db.RecentSold()
 
@@ -427,7 +429,7 @@ func (p *DbConn) AdminOrder() []map[string]string {
     sql := "SELECT order_request.*, stock.seat_id, stock.variation_id, stock.updated_at " +
            "FROM order_request JOIN stock ON order_request.id = stock.order_id " +
            "ORDER BY order_request.id ASC"
-    fmt.Printf("  [%s]\n", sql);
+    //fmt.Printf("  [%s]\n", sql);
 
     rows, err := p.db_conn.Query(sql)
     if err != nil {
@@ -447,6 +449,8 @@ func (p *DbConn) Admin() {
         panic(err.Error())
     }
 
+    tx, err := p.db_conn.Begin()
+
     bufReader := bufio.NewReader(file)
     for i := 0; ; i++ {
         s, err := bufReader.ReadString('\n')
@@ -458,8 +462,10 @@ func (p *DbConn) Admin() {
             continue
         }
 
-        _, err = p.db_conn.Exec(s)
+        _, err = tx.Exec(s)
     }
+
+    tx.Commit()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -499,12 +505,18 @@ func ticketHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func buyHandler(w http.ResponseWriter, r *http.Request) {
+    if r.Method != "POST" {
+        fmt.Printf("Cannot %s /buy\n", r.Method)
+        fmt.Fprintf(w, "Cannot %s /buy", r.Method)
+        return
+    }
+
     variation_id := r.PostFormValue("variation_id")
     member_id := r.PostFormValue("member_id")
 
     //fmt.Fprintf(w, "buy:\n")
-    //fmt.Fprintf(w, "  variation_id: %s\n", variation_id)
-    //fmt.Fprintf(w, "  member_id: %s\n", member_id)
+    //fmt.Printf("  variation_id: %s\n", variation_id)
+    //fmt.Printf("  member_id: %s\n", member_id)
 
     model := db.Buy(variation_id, member_id)
 
@@ -522,23 +534,34 @@ func buyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func adminHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Print("get /admin\n");
-
-    db.Admin()
-
-    fmt.Fprintf(w, "\n")
+    if r.Method == "POST" {
+        fmt.Print("post /admin\n");
+        db.Admin()
+        http.Redirect(w, r, "/admin", 302)
+    } else {
+        fmt.Print("get /admin\n");
+        var t = template.Must(template.ParseFiles("template/admin.html"))
+        if err := t.Execute(w, nil); err != nil {
+            fmt.Println(err.Error())
+        }
+    }
 }
 
 func adminCsvHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/csv")
+
     data := db.AdminOrder()
 
+    var buffer bytes.Buffer
     siz := len(data)
     for i := 0; i < siz; i++ {
-        for _, v := range data[i] {
-            fmt.Fprintf(w, "%s,", v)
-        }
-        fmt.Fprintf(w, "\n")
+        s := fmt.Sprintf("%s,%s,%s,%s,%s\n", 
+            data[i]["id"], data[i]["member_id"], data[i]["seat_id"],
+            data[i]["variation_id"], data[i]["updated_at"]);
+        buffer.WriteString(s)
     }
+
+    fmt.Fprintln(w, buffer.String())
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -547,8 +570,8 @@ func main() {
 
     http.HandleFunc("/artist/", artistHandler);
     http.HandleFunc("/ticket/", ticketHandler);
-    http.HandleFunc("/buy/", buyHandler);
-    http.HandleFunc("/admin/", adminHandler);
+    http.HandleFunc("/buy", buyHandler);
+    http.HandleFunc("/admin", adminHandler);
     http.HandleFunc("/admin/order.csv", adminCsvHandler);
     http.HandleFunc("/", rootHandler);
 
