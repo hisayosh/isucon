@@ -16,16 +16,17 @@ from flask import (
 import memcache
 from flask_memcache_session import Session
 from werkzeug.contrib.fixers import ProxyFix
+import markdown
 
 import json, os, hashlib, tempfile, subprocess
 
 config = {}
 
 app = Flask(__name__, static_url_path='')
-app.cache = memcache.Client(['localhost:11211'], debug=0)
+app.cache = memcache.Client(['localhost:11212'], debug=0)
 app.session_interface = Session()
 app.session_cookie_name = "isucon_session"
-app.wsgi_app = ProxyFix(app.wsgi_app)
+
 
 def load_config():
     global config
@@ -47,12 +48,14 @@ def connect_db():
 
 def get_user():
     user_id = session.get('user_id')
-    user = None
+    user = {}
     if user_id:
-        cur = get_db().cursor()
-        cur.execute("SELECT * FROM users WHERE id=%s", user_id)
-        user = cur.fetchone()
-        cur.close()
+#        cur = get_db().cursor()
+#        cur.execute("SELECT * FROM users WHERE id=%s", user_id)
+#        user = cur.fetchone()
+#        cur.close()
+        user['username'] = session.get('username')
+        user['id'] = user_id
     if user:
         @after_this_request
         def add_header(response):
@@ -73,11 +76,12 @@ def require_user(user):
 
 
 def gen_markdown(md):
-    temp = tempfile.NamedTemporaryFile()
-    temp.write(bytes(md, 'UTF-8'))
-    temp.flush()
-    html = subprocess.getoutput("/home/isucon/webapp/bin/markdown %s" % temp.name)
-    temp.close()
+#    temp = tempfile.NamedTemporaryFile()
+#    temp.write(bytes(md, 'UTF-8'))
+#    temp.flush()
+#    html = subprocess.getoutput("/home/isucon/webapp/bin/markdown %s" % temp.name)
+    html = markdown.markdown(md)
+#    temp.close()
     return html
 
 def get_db():
@@ -102,11 +106,12 @@ def top_page():
     cur.execute('SELECT count(*) AS c FROM memos WHERE is_private=0')
     total = cur.fetchone()['c']
 
-    cur.execute("SELECT * FROM memos WHERE is_private=0 ORDER BY created_at DESC, id DESC LIMIT 100")
+#    cur.execute("SELECT * FROM memos WHERE is_private=0 ORDER BY created_at DESC, id DESC LIMIT 100")
+    cur.execute("SELECT memos.*,users.username FROM memos JOIN users ON users.id = memos.user JOIN (SELECT id FROM memos WHERE is_private=0 ORDER BY created_at DESC LIMIT 100)  AS tmp ON tmp.id = memos.id;")
     memos = cur.fetchall()
-    for memo in memos:
-        cur.execute('SELECT username FROM users WHERE id=%s', memo["user"])
-        memo['username'] = cur.fetchone()['username']
+#    for memo in memos:
+#        cur.execute('SELECT username FROM users WHERE id=%s', memo["user"])
+#        memo['username'] = cur.fetchone()['username']
 
     cur.close()
 
@@ -125,15 +130,15 @@ def recent(page):
     cur = get_db().cursor()
     cur.execute('SELECT count(*) AS c FROM memos WHERE is_private=0')
     total = cur.fetchone()['c']
-
-    cur.execute("SELECT * FROM memos WHERE is_private=0 ORDER BY created_at DESC, id DESC LIMIT 100 OFFSET " + str(page * 100))
+    cur.execute("SELECT memos.*,users.username FROM memos JOIN users ON users.id = memos.user JOIN (SELECT id FROM memos WHERE is_private=0 ORDER BY created_at DESC LIMIT 100)  AS tmp ON tmp.id = memos.id;")
+#    cur.execute("SELECT * FROM memos WHERE is_private=0 ORDER BY created_at DESC, id DESC LIMIT 100 OFFSET " + str(page * 100))
     memos = cur.fetchall()
     if len(memos) == 0:
         abort(404)
 
-    for memo in memos:
-        cur.execute('SELECT username FROM users WHERE id=%s', memo["user"])
-        memo['username'] = cur.fetchone()['username']
+#    for memo in memos:
+#        cur.execute('SELECT username FROM users WHERE id=%s', memo["user"])
+#        memo['username'] = cur.fetchone()['username']
 
     cur.close()
 
@@ -180,7 +185,8 @@ def signin_post():
     if user and user["password"] == hashlib.sha256(bytes(user["salt"] + password, 'UTF-8')).hexdigest():
         session["user_id"] = user["id"]
         session["token"] = hashlib.sha256(os.urandom(40)).hexdigest()
-        cur.execute("UPDATE users SET last_access=now() WHERE id=%s", user["id"])
+        session["username"] = username
+#        cur.execute("UPDATE users SET last_access=now() WHERE id=%s", user["id"])
         cur.close()
         db.commit()
         return redirect(url_for("mypage"))
@@ -257,6 +263,8 @@ def memo_post():
           int(request.form.get("is_private") or 0)
         )
     )
+    if request.form.get("is_private"):
+        cur.execute("UPDATE public_count SET cnt = cnt + 1")
     memo_id = db.insert_id()
     cur.close()
     db.commit()
