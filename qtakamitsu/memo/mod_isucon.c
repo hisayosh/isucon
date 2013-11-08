@@ -15,6 +15,8 @@
 #include "http_log.h"
 #include "http_config.h"
 #include "http_protocol.h"
+#include "apr_dbd.h"
+#include "mod_dbd.h"
 #include "ap_config.h"
 #include "apr_tables.h"
 #include "apr_strings.h"
@@ -93,6 +95,57 @@ static void dump_query_string(request_rec *r, const apr_table_t *table)
     return;
 }
 
+static apr_array_header_t *exec_select(request_rec *r, char *sql)
+{
+    apr_array_header_t *data;
+    apr_array_header_t *items;
+    apr_array_header_t *arr;
+    int ret;
+    ap_dbd_t *dbd;
+    apr_dbd_results_t *res;
+    apr_dbd_row_t *row;
+    int rows;
+    int cols;
+    int i;
+    const char *val;
+    char *entry;
+
+    dbd = ap_dbd_acquire(r);
+    if (dbd == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, "Error: ap_dbd_acquire()");
+        return NULL;
+    }
+
+    ret = apr_dbd_select(dbd->driver, r->pool, dbd->handle, &res, sql, 0);
+    if (ret != 0) {
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, "Error %d %s", ret, apr_dbd_error(dbd->driver, dbd->handle, ret));
+        return NULL;
+    }
+
+    rows = apr_dbd_num_tuples(dbd->driver, res);
+    cols = apr_dbd_num_cols(dbd->driver, res);
+
+    data = apr_array_make(r->pool, rows, sizeof(apr_array_header_t*));
+
+    row = NULL;
+    while (apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1) != -1) {
+        items = apr_array_make(r->pool, cols, sizeof(char*));
+
+        for (i = 0; i < cols; i++) {
+            val = apr_dbd_get_entry(dbd->driver, row, i);
+
+            entry = apr_array_push(items);
+            *(char **)entry = apr_pstrdup(r->pool, val);
+        }
+
+        arr = apr_array_push(data);
+        *(apr_array_header_t **)arr = items;
+    }
+
+    return data;
+}
+
+
 /* The sample content handler */
 static int isucon_handler(request_rec *r)
 {
@@ -103,6 +156,27 @@ static int isucon_handler(request_rec *r)
 
     if (r->header_only)
         return OK;
+
+    {
+        apr_array_header_t *data;
+        apr_array_header_t *items;
+        char *val;
+        int i, j;
+
+        data = exec_select(r, "SELECT * FROM memos");
+
+        if (data != NULL) {
+            for (i = 0; i < data->nelts; i++) {
+                items = APR_ARRAY_IDX(data, i, apr_array_header_t *);
+                for (j = 0; j < items->nelts; j++) {
+                    val = APR_ARRAY_IDX(items, j, char *);
+
+                    ap_rprintf(r, "[%s]", val);
+                }
+                ap_rputs("", r);
+            }
+        }
+    }
 
     {
         apr_table_t *table = parse_post(r, r->args);
