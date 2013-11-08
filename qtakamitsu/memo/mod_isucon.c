@@ -68,7 +68,7 @@ static apr_table_t *parse_post(request_rec *r, const char *query_string)
         return table;
     }
 
-    while(*query_string && (val = ap_getword(r->pool, &query_string, '&'))){
+    while (*query_string && (val = ap_getword(r->pool, &query_string, '&'))) {
         key = ap_getword(r->pool, &val, '=');
 
         ap_unescape_url((char*)key);
@@ -77,6 +77,27 @@ static apr_table_t *parse_post(request_rec *r, const char *query_string)
     }
 
     return table;
+}
+
+static apr_array_header_t *parse_path(request_rec *r, const char *path)
+{
+    apr_array_header_t *path_split;
+    const char *val;
+    char *entry;
+
+    if (path == NULL) {
+        return NULL;
+    }
+
+    path_split = apr_array_make(r->pool, 8, sizeof(apr_array_header_t*));
+
+    while (*path && (val = ap_getword(r->pool, &path, '/'))) {
+    ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, ">> path = %s", val);
+        entry = apr_array_push(path_split);
+        *(char **)entry = apr_pstrdup(r->pool, val);
+    }
+
+    return path_split;
 }
 
 static void dump_query_string(request_rec *r, const apr_table_t *table)
@@ -158,6 +179,12 @@ static int isucon_handler(request_rec *r)
         return OK;
 
     {
+        apr_array_header_t *p;
+
+        p = parse_path(r, r->uri);
+    }
+
+    {
         apr_array_header_t *data;
         apr_array_header_t *items;
         char *val;
@@ -175,6 +202,7 @@ static int isucon_handler(request_rec *r)
                 }
                 ap_rputs("", r);
             }
+            apr_array_clear(data);
         }
     }
 
