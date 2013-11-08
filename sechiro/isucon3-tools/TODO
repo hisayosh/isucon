@@ -1,3 +1,7 @@
 nginx memcached
 nginx lua
 nginx lua-redis
+
+http://dak1n1.com/blog/12-nginx-performance-tuning
+http://blog.nomadscafe.jp/2012/11/isucon2-5.html
+
