@@ -1,0 +1,28 @@
+
+    # apr
+    tar jxf apr-1.4.8.tar.bz2
+    cd apr-1.4.8
+    ./configure --prefix=$HOME/apps/apr-1.4.8
+    make
+    make install
+
+    # apr-util
+    tar jxf apr-util-1.5.2.tar.bz2
+    cd apr-util-1.5.2
+    ./configure --prefix=$HOME/apps/apr-util-1.5.2 --with-apr=$HOME/apps/apr-1.4.8/bin --with-mysql=/usr/local/mysql
+    make
+    make install
+
+    # apache
+    #   require:
+    #     % sudo yum install pcre-devel
+    tar jxf httpd-2.4.6.tar.bz2
+    cd httpd-2.4.6
+    ./configure --prefix=$HOME/apps/apache-2.4.6 \
+      --with-apr=$HOME/apps/apr-1.4.8  \
+      --with-apr-util=$HOME/apps/apr-util-1.5.2  \
+      --with-mysql=/usr/local/mysql  \
+      --enable-dbd
+    make
+    make install
+
